@@ -2,12 +2,14 @@
 #' Date: Apr 16 2024
 #' Project: EARNEST
 #' 
-#' The code analyzes storm event details from NWS reports specific to Iowa, 
-#' extracting event counts, wind characteristics, and spatial-temporal averages.
-#'  It preprocesses the data, filtering columns and standardizing date-time 
-#'  formats. Then iterates over each unique episode, calculating summary 
-#'  statistics for multiple files. 
-#'  Finally, the summarized results are exported to a CSV file 
+#' The code analyzes windy weather episodes from NWS reports specific to Iowa, 
+#' extracting event counts, wind characteristics, and other weather types 
+#' reported during the episode.
+#' It preprocesses the data, filtering columns and standardizing date-time 
+#' formats. Then iterates over each unique episode, calculating summary 
+#' statistics saving to a CSV file. 
+#' The Derecho events are not listed in the NWS reports as standard events, but the
+#' descriptions refers to the Dericho, which is extracted.
 
 state="IOWA"
 
@@ -236,9 +238,7 @@ period <- paste((strftime(min(summary_df$time), format="%Y")),
 
 
 outfile <- paste("./data/out/", state, 
-                 "_windy-weather-episodes_", period, strftime(Sys.time(), format = "_v%y.%m"), ".csv", sep = "")
+                 "_windy-weather-episodes_", period, strftime(Sys.time(), format = "_v%y-%m"), ".csv", sep = "")
 write.csv(summary_df, file = outfile, quote = FALSE, row.names = FALSE)
 
-
-iowa___v24.04_1996-2023.csv
 
