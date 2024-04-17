@@ -12,8 +12,8 @@
 #' descriptions refers to the Dericho, which is extracted.
 
 state="IOWA"
+select_events <- c("Thunderstorm Wind", "Strong Wind", "High wind")
 
-library(plyr)
 
 # Set working directory
 setwd("/Users/bhupendra/projects/earnest")
@@ -22,21 +22,27 @@ setwd("/Users/bhupendra/projects/earnest")
 # Read event details extract required columns
 read_event_details <- function(file_path, state) {
   details <- read.table(file_path, header = TRUE, sep = ",")
-  details$tornadof <- ifelse(details$TOR_F_SCALE=="", NA, details$TOR_F_SCALE)
+  #details$tornadof <- ifelse(details$TOR_F_SCALE=="", NA, details$TOR_F_SCALE)
   details$derecho <- stringr::str_detect(tolower(details$EPISODE_NARRATIVE), 
                                          pattern = "derecho")
-  
-  # Filter relevant columns and rows
-  details_df <- details[details$STATE == state & (details$EVENT_TYPE == "Thunderstorm Wind" |
-                                                    details$EVENT_TYPE == "Strong Wind"),
-                        c(7:9, 13, 18:20, 28, 29, 45:48, 52, 53)]
-  colnames(details_df) <- tolower(colnames(details_df))
-  
   # Convert date-time columns to POSIXct format
-  details_df$begin_time <- strptime(details_df$begin_date_time, format = "%d-%b-%y %H:%M:%S")
-  details_df$end_time <- strptime(details_df$end_date_time, format = "%d-%b-%y %H:%M:%S")
+  details$begin_time <- strptime(details$BEGIN_DATE_TIME, format = "%d-%b-%y %H:%M:%S")
+  details$end_time <- strptime(details$END_DATE_TIME, format = "%d-%b-%y %H:%M:%S")
   
-  return(details_df)
+  details <- details[ ,c(7:9, 13, 18:20, 28, 29, 45:48, 52, 53)]
+  
+  # Filter relevant columns to find episodes
+  details_df <- details[details$STATE == state & 
+                          (details$EVENT_TYPE %in% select_events),]
+  unique_episodes <- unique(details_df$EPISODE_ID)
+
+  # select data for only these episodes
+  details <- details[details$EPISODE_ID %in% unique_episodes,]
+  colnames(details) <- tolower(colnames(details))
+  
+
+  
+  return(details)
 }
 
 
@@ -185,12 +191,13 @@ summarize_episodes <- function(unique_episodes, details_df) {
     lat <- mean(c(df$begin_lat, df$end_lat), na.rm=TRUE)
     lon <- mean(c(df$begin_lon, df$end_lon), na.rm=TRUE)
     time <- round(mean(c(df$begin_time, df$end_time), na.rm=TRUE))
+    time <- strftime(time, format = "%Y-%m-%d %H:%M:%S")
     derecho <- any(df$derecho, na.rm = TRUE)
-    torf_max <- ifelse(all(is.na(df$tornadof), NA, max(df$tornadof, na.rm = TRUE)))
+    #torf_max <- ifelse(all(is.na(df$tornadof), NA, max(df$tornadof, na.rm = TRUE)))
     
     # Create dataframe for current episode summary
     episode_summary <- data.frame(time, tzone, lat, lon, state, episode, events,
-                                  derecho, tornado, torf_max, funnel_cloud,
+                                  derecho, tornado, funnel_cloud,
                                   wind_mg, wind_eg, wind_ms, wind_es, flash_flood, 
                                   flood, heavy_rain, heavy_snow,
                                   high_wind, hurricane_typhoon, lightning,
@@ -215,6 +222,8 @@ summarize_episodes <- function(unique_episodes, details_df) {
   return(summary_df)  # Return the summary dataframe
 }
 
+
+
 run_all_files <- function(f, state) {
   details_df <- read_event_details(f, state)
   unique_episodes <- unique(details_df$episode_id)
@@ -232,6 +241,7 @@ summary_df_list <- lapply(event_files, run_all_files, state)
 # unlist and combine dataframes from list into one
 summary_df <- do.call(rbind, Filter(Negate(is.null), summary_df_list))
 summary_df <- summary_df[order(summary_df$time),]
+summary_df <- summary_df[which(!is.na(summary_df$time)),]
 
 period <- paste((strftime(min(summary_df$time), format="%Y")),
                 (strftime(max(summary_df$time), format="%Y")), sep = "-")
