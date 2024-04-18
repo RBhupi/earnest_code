@@ -11,7 +11,13 @@
 #' The Derecho events are not listed in the NWS reports as standard events, but the
 #' descriptions refers to the Dericho, which is extracted.
 
-state="IOWA"
+states=toupper(c('Illinois', 'Indiana', 'Iowa', 'Kansas', 'Michigan', 
+                 'Minnesota', 'Missouri', 'Nebraska', 'North Dakota', 'Ohio', 
+                 'South Dakota', 'Wisconsin'))
+region="WISCONSIN"
+
+states=region
+
 select_events <- c("Thunderstorm Wind", "Strong Wind", "High wind")
 
 
@@ -20,7 +26,7 @@ setwd("/Users/bhupendra/projects/earnest")
 
 
 # Read event details extract required columns
-read_event_details <- function(file_path, state) {
+read_event_details <- function(file_path, states) {
   details <- read.table(file_path, header = TRUE, sep = ",")
   #details$tornadof <- ifelse(details$TOR_F_SCALE=="", NA, details$TOR_F_SCALE)
   details$derecho <- stringr::str_detect(tolower(details$EPISODE_NARRATIVE), 
@@ -32,7 +38,7 @@ read_event_details <- function(file_path, state) {
   details <- details[ ,c(7:9, 13, 18:20, 28, 29, 45:48, 52, 53)]
   
   # Filter relevant columns to find episodes
-  details_df <- details[details$STATE == state & 
+  details_df <- details[details$STATE %in% states & 
                           (details$EVENT_TYPE %in% select_events),]
   unique_episodes <- unique(details_df$EPISODE_ID)
 
@@ -224,8 +230,8 @@ summarize_episodes <- function(unique_episodes, details_df) {
 
 
 
-run_all_files <- function(f, state) {
-  details_df <- read_event_details(f, state)
+run_all_files <- function(f, states) {
+  details_df <- read_event_details(f, states)
   unique_episodes <- unique(details_df$episode_id)
   summary_df <- summarize_episodes(unique_episodes, details_df)
   return(summary_df)
@@ -236,18 +242,18 @@ run_all_files <- function(f, state) {
 
 event_files <- Sys.glob(path = "./data/stormevents/StormEvents_details-ftp_v1.0_d*.csv")
 event_files <- event_files[order(event_files)]
-summary_df_list <- lapply(event_files, run_all_files, state)
+summary_df_list <- lapply(event_files, run_all_files, states)
 
 # unlist and combine dataframes from list into one
 summary_df <- do.call(rbind, Filter(Negate(is.null), summary_df_list))
-summary_df <- summary_df[order(summary_df$time),]
 summary_df <- summary_df[which(!is.na(summary_df$time)),]
+summary_df <- summary_df[order(summary_df$time),]
 
 period <- paste((strftime(min(summary_df$time), format="%Y")),
                 (strftime(max(summary_df$time), format="%Y")), sep = "-")
 
 
-outfile <- paste("./data/out/", state, 
+outfile <- paste("./data/out/", region, 
                  "_windy-weather-episodes_", period, strftime(Sys.time(), format = "_v%y-%m"), ".csv", sep = "")
 write.csv(summary_df, file = outfile, quote = FALSE, row.names = FALSE)
 
