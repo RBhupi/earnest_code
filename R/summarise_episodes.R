@@ -14,7 +14,7 @@
 states=toupper(c('Illinois', 'Indiana', 'Iowa', 'Kansas', 'Michigan', 
                  'Minnesota', 'Missouri', 'Nebraska', 'North Dakota', 'Ohio', 
                  'South Dakota', 'Wisconsin'))
-region="WISCONSIN"
+region="MISSOURI"
 
 states=region
 
@@ -238,20 +238,22 @@ run_all_files <- function(f, states) {
 }
 
 
-
-
 event_files <- Sys.glob(path = "./data/stormevents/StormEvents_details-ftp_v1.0_d*.csv")
 event_files <- event_files[order(event_files)]
 summary_df_list <- lapply(event_files, run_all_files, states)
 
 # unlist and combine dataframes from list into one
+# This part is problematic when dates are missing or in incorrect format.
 summary_df <- do.call(rbind, Filter(Negate(is.null), summary_df_list))
 summary_df <- summary_df[which(!is.na(summary_df$time)),]
+summary_df <- summary_df[which(summary_df$time!="NaN"),]
 summary_df <- summary_df[order(summary_df$time),]
 
-period <- paste((strftime(min(summary_df$time), format="%Y")),
-                (strftime(max(summary_df$time), format="%Y")), sep = "-")
+period <- paste((strftime(min(summary_df$time, na.rm = TRUE), format="%Y")),
+                (strftime(max(summary_df$time, na.rm = TRUE), format="%Y")), sep = "-")
 
+
+print(tail(summary_df$time))
 
 outfile <- paste("./data/out/", region, 
                  "_windy-weather-episodes_", period, strftime(Sys.time(), format = "_v%y-%m"), ".csv", sep = "")
