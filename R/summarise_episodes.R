@@ -46,8 +46,6 @@ read_event_details <- function(file_path, states) {
   details <- details[details$EPISODE_ID %in% unique_episodes,]
   colnames(details) <- tolower(colnames(details))
   
-
-  
   return(details)
 }
 
